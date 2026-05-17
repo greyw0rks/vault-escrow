@@ -7,14 +7,13 @@ import {
   principalCV,
   stringAsciiCV,
   boolCV,
-  callReadOnlyFunction,
+  fetchCallReadOnlyFunction,
   cvToValue,
-  type StacksNetwork,
 } from '@stacks/transactions';
-import { StacksMainnet, StacksTestnet } from '@stacks/network';
+import { STACKS_MAINNET, STACKS_TESTNET } from '@stacks/network';
 
 const IS_MAINNET = process.env.NEXT_PUBLIC_NETWORK === 'mainnet';
-export const NETWORK: StacksNetwork = IS_MAINNET ? new StacksMainnet() : new StacksTestnet();
+export const NETWORK = IS_MAINNET ? STACKS_MAINNET : STACKS_TESTNET;
 
 export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS!;
 export const CONTRACT_NAME    = 'vaultstx-escrow';
@@ -48,7 +47,7 @@ const ESCROW_STATES: EscrowState[] = ['open', 'active', 'disputed', 'complete', 
 const MS_STATES: MilestoneState[]  = ['pending', 'submitted', 'approved', 'disputed'];
 
 export async function fetchEscrow(id: number): Promise<Escrow | null> {
-  const result = await callReadOnlyFunction({
+  const result = await fetchCallReadOnlyFunction({
     contractAddress: CONTRACT_ADDRESS,
     contractName:    CONTRACT_NAME,
     functionName:    'get-escrow',
@@ -74,7 +73,7 @@ export async function fetchEscrow(id: number): Promise<Escrow | null> {
 }
 
 export async function fetchMilestone(escrowId: number, index: number): Promise<Milestone | null> {
-  const result = await callReadOnlyFunction({
+  const result = await fetchCallReadOnlyFunction({
     contractAddress: CONTRACT_ADDRESS,
     contractName:    CONTRACT_NAME,
     functionName:    'get-milestone',
