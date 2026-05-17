@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useConnect, useAuth } from '@stacks/connect-react';
+import { useConnect, isConnected, getUserData } from '@stacks/connect-react';
 import {
   fetchEscrow, fetchAllMilestones,
   buildSubmitMilestone, buildApproveMilestone,
@@ -12,34 +12,24 @@ import {
 } from '@/lib/contract';
 
 const STATE_LABELS: Record<string, string> = {
-  open: 'Open',
-  active: 'Active',
-  disputed: 'Disputed',
-  complete: 'Complete',
-  cancelled: 'Cancelled',
+  open: 'Open', active: 'Active', disputed: 'Disputed', complete: 'Complete', cancelled: 'Cancelled',
 };
 
 const MS_LABELS: Record<string, string> = {
-  pending: 'Pending',
-  submitted: 'Submitted',
-  approved: 'Approved',
-  disputed: 'Disputed',
+  pending: 'Pending', submitted: 'Submitted', approved: 'Approved', disputed: 'Disputed',
 };
 
 export default function EscrowDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { doContractCall } = useConnect();
-  const { userSession, isSignedIn } = useAuth();
 
-  const [escrow, setEscrow]       = useState<Escrow | null>(null);
+  const myAddress = isConnected() ? ((getUserData() as any)?.profile?.stxAddress?.testnet ?? null) : null;
+
+  const [escrow, setEscrow]         = useState<Escrow | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [txLoading, setTxLoading] = useState(false);
-  const [error, setError]         = useState('');
-
-  const myAddress = isSignedIn
-    ? userSession.loadUserData().profile.stxAddress.testnet
-    : null;
+  const [loading, setLoading]       = useState(true);
+  const [txLoading, setTxLoading]   = useState(false);
+  const [error, setError]           = useState('');
 
   const isClient   = myAddress === escrow?.client;
   const isWorker   = myAddress === escrow?.worker;
@@ -73,14 +63,12 @@ export default function EscrowDetailPage() {
   if (loading) return <div className="loading">Loading escrow…</div>;
   if (!escrow) return <div className="error-page">{error}</div>;
 
-  const activeMilestone = milestones[escrow.activeMilestone];
   const progress = escrow.milestoneCount > 0
     ? Math.round((milestones.filter(m => m.state === 'approved').length / escrow.milestoneCount) * 100)
     : 0;
 
   return (
     <main className="detail-page">
-      {/* Header */}
       <div className="detail-header">
         <div>
           <h1>Escrow #{escrow.id}</h1>
@@ -92,7 +80,6 @@ export default function EscrowDetailPage() {
         </div>
       </div>
 
-      {/* Parties */}
       <div className="parties-row">
         <div className="party">
           <span className="party-role">Client</span>
@@ -112,7 +99,6 @@ export default function EscrowDetailPage() {
         </div>
       </div>
 
-      {/* Progress bar */}
       <div className="progress-track">
         <div className="progress-fill" style={{ width: `${progress}%` }} />
       </div>
@@ -121,7 +107,6 @@ export default function EscrowDetailPage() {
         · {microToSTX(escrow.released)} / {microToSTX(escrow.totalAmount)} STX released
       </p>
 
-      {/* Milestones */}
       <div className="milestones-list">
         {milestones.map((ms, i) => (
           <div key={i} className={`milestone-card ms-${ms.state} ${i === escrow.activeMilestone ? 'active' : ''}`}>
@@ -134,64 +119,35 @@ export default function EscrowDetailPage() {
               <span className={`ms-badge ms-badge-${ms.state}`}>{MS_LABELS[ms.state]}</span>
             </div>
 
-            {/* Actions for active milestone */}
             {i === escrow.activeMilestone && (
               <div className="ms-actions">
-                {/* Worker submits */}
                 {isWorker && ms.state === 'pending' && escrow.state === 'active' && (
-                  <button
-                    className="btn-primary btn-sm"
-                    onClick={() => callContract(buildSubmitMilestone(escrow.id, i))}
-                    disabled={txLoading}
-                  >
+                  <button className="btn-primary btn-sm" onClick={() => callContract(buildSubmitMilestone(escrow.id, i))} disabled={txLoading}>
                     Submit for review
                   </button>
                 )}
-                {/* Client approves or disputes */}
                 {isClient && ms.state === 'submitted' && escrow.state === 'active' && (
                   <>
-                    <button
-                      className="btn-success btn-sm"
-                      onClick={() => callContract(buildApproveMilestone(escrow.id, i))}
-                      disabled={txLoading}
-                    >
+                    <button className="btn-success btn-sm" onClick={() => callContract(buildApproveMilestone(escrow.id, i))} disabled={txLoading}>
                       Approve & release {microToSTX(ms.amount)} STX
                     </button>
-                    <button
-                      className="btn-danger btn-sm"
-                      onClick={() => callContract(buildRaiseDispute(escrow.id, i))}
-                      disabled={txLoading}
-                    >
+                    <button className="btn-danger btn-sm" onClick={() => callContract(buildRaiseDispute(escrow.id, i))} disabled={txLoading}>
                       Raise dispute
                     </button>
                   </>
                 )}
-                {/* Worker also can dispute */}
                 {isWorker && ms.state === 'submitted' && escrow.state === 'active' && (
-                  <button
-                    className="btn-danger btn-sm"
-                    onClick={() => callContract(buildRaiseDispute(escrow.id, i))}
-                    disabled={txLoading}
-                  >
+                  <button className="btn-danger btn-sm" onClick={() => callContract(buildRaiseDispute(escrow.id, i))} disabled={txLoading}>
                     Raise dispute
                   </button>
                 )}
-                {/* Resolver resolves */}
                 {isResolver && ms.state === 'disputed' && escrow.state === 'disputed' && (
                   <>
                     <p className="resolver-note">You are the resolver for this dispute.</p>
-                    <button
-                      className="btn-success btn-sm"
-                      onClick={() => callContract(buildResolveDispute(escrow.id, i, true))}
-                      disabled={txLoading}
-                    >
+                    <button className="btn-success btn-sm" onClick={() => callContract(buildResolveDispute(escrow.id, i, true))} disabled={txLoading}>
                       Release to worker
                     </button>
-                    <button
-                      className="btn-warning btn-sm"
-                      onClick={() => callContract(buildResolveDispute(escrow.id, i, false))}
-                      disabled={txLoading}
-                    >
+                    <button className="btn-warning btn-sm" onClick={() => callContract(buildResolveDispute(escrow.id, i, false))} disabled={txLoading}>
                       Refund client
                     </button>
                   </>

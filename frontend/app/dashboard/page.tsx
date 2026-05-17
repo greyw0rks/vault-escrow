@@ -39,7 +39,7 @@ export default function DashboardPage() {
     const connected = isConnected();
     setSignedIn(connected);
     if (connected) {
-      const data = getUserData();
+      const data = getUserData() as any;
       setAddress(data?.profile?.stxAddress?.testnet ?? null);
     }
   }, []);
