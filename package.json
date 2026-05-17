@@ -1,7 +1,7 @@
 {
-  "name": "vaultstx2-tests",
+  "name": "@greyw0rks/vault-escrow",
   "version": "1.0.0",
-  "description": "Run unit tests on this project.",
+  "description": "Trustless milestone escrow frontend for Stacks/Bitcoin",
   "type": "module",
   "private": true,
   "scripts": {
@@ -9,8 +9,8 @@
     "test:report": "vitest run -- --coverage --costs",
     "test:watch": "chokidar \"tests/**/*.ts\" \"contracts/**/*.clar\" -c \"npm run test:report\""
   },
-  "author": "",
-  "license": "ISC",
+  "author": "greyw0rks",
+  "license": "MIT",
   "dependencies": {
     "@hirosystems/clarinet-sdk": "^3.8.1",
     "@stacks/clarinet-sdk": "^3.9.0",
@@ -19,5 +19,34 @@
     "chokidar-cli": "^3.0.0",
     "vitest": "^4.0.7",
     "vitest-environment-clarinet": "^3.0.0"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "stacks",
+    "bitcoin",
+    "escrow",
+    "clarity",
+    "web3",
+    "stx",
+    "milestone"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/greyw0rks/vault-escrow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/greyw0rks/vault-escrow/issues"
+  },
+  "homepage": "https://github.com/greyw0rks/vault-escrow#readme",
+  "files": [
+    "app",
+    "components",
+    "lib",
+    "public",
+    "next.config.js",
+    "tsconfig.json",
+    "README.md"
+  ]
 }
