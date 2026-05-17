@@ -9,7 +9,7 @@ export default function HomePage() {
   const isSignedIn = false;
 
   const openAuthRequest = () => {
-    authenticate();
+    authenticate({ appDetails: { name: "VaultSTX", icon: "/logo.svg" } });
   };
 
   return (
