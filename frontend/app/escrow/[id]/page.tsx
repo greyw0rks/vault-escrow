@@ -49,21 +49,11 @@ export default function EscrowDetailPage() {
   async function callContract(txOptions: object) {
     setTxLoading(true);
     try {
-      await doContractCall({...(txOptions as any),
+      await doContractCall({
+        ...(txOptions as any),
         onFinish: () => { load(); setTxLoading(false); },
         onCancel: () => setTxLoading(false),
       } as any);
-    } catch (e: any) {
-      setError(e.message);
-      setTxLoading(false);
-    }
-  }
-
-  // REMOVE_BELOW
-        ...txOptions,
-        onFinish: () => { load(); setTxLoading(false); },
-        onCancel: () => setTxLoading(false),
-      });
     } catch (e: any) {
       setError(e.message);
       setTxLoading(false);
