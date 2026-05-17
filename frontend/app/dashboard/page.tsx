@@ -67,7 +67,7 @@ export default function DashboardPage() {
       <main className="center-page page">
         <h1>Dashboard</h1>
         <p style={{ color: 'var(--muted)' }}>Connect your wallet to view your escrows.</p>
-        <button className="btn-primary" onClick={() => authenticate()}>Connect Wallet</button>
+        <button className="btn-primary" onClick={() => authenticate({ appDetails: { name: "VaultSTX", icon: "/logo.svg" } })}>Connect Wallet</button>
       </main>
     );
   }
