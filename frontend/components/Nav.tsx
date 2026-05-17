@@ -1,15 +1,16 @@
 'use client';
-'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useConnect } from '@stacks/connect-react';
+import { useConnect, isConnected, getUserData, disconnect } from '@stacks/connect-react';
 
 export default function Nav() {
   const { authenticate } = useConnect();
   const pathname = usePathname();
 
-  const isSignedIn = false;
+  const signedIn = isConnected();
+  const address = signedIn ? ((getUserData() as any)?.profile?.stxAddress?.testnet ?? null) : null;
+
   return (
     <nav>
       <Link href="/" className="nav-brand">
@@ -32,13 +33,13 @@ export default function Nav() {
       </div>
 
       <div className="nav-actions">
-        {isSignedIn ? (
+        {signedIn ? (
           <>
             <span className="address-pill">{address?.slice(0,8)}…{address?.slice(-4)}</span>
-            <button className="btn-ghost" style={{ padding: '.35rem .875rem', fontSize: '.8125rem' }} onClick={signOut}>Disconnect</button>
+            <button className="btn-ghost" style={{ padding: '.35rem .875rem', fontSize: '.8125rem' }} onClick={() => disconnect()}>Disconnect</button>
           </>
         ) : (
-          <button className="btn-primary" onClick={() => openAuthRequest()}>Connect Wallet</button>
+          <button className="btn-primary" onClick={() => authenticate({ appDetails: { name: 'VaultSTX', icon: '/logo.svg' } })}>Connect Wallet</button>
         )}
       </div>
     </nav>
