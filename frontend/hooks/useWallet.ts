@@ -18,8 +18,7 @@ export function useWallet() {
 
   const connect = () => authenticate({ appDetails: { name: 'VaultSTX', icon: '/logo.svg' } });
   const signOut = () => { disconnect(); setConnected(false); setAddress(null); };
-
-  const shortAddress = address ? `${address.slice(0, 8)}…${address.slice(-4)}` : null;
+  const shortAddress = address ? address.slice(0, 8) + '\u2026' + address.slice(-4) : null;
 
   return { connected, address, shortAddress, connect, signOut };
 }
