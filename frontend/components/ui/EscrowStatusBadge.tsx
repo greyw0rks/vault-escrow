@@ -20,13 +20,10 @@ export function EscrowStatusBadge({ state }: { state: EscrowState }) {
   const color = COLORS[state];
   return (
     <span style={{
-      background: `${color}22`,
-      color,
-      border: `1px solid ${color}44`,
+      background: color + '22', color,
+      border: '1px solid ' + color + '44',
       fontFamily: "'JetBrains Mono', monospace",
-      fontSize: '.6875rem',
-      padding: '.2rem .5rem',
-      borderRadius: '20px',
+      fontSize: '.6875rem', padding: '.2rem .5rem', borderRadius: '20px',
     }}>
       {LABELS[state]}
     </span>
