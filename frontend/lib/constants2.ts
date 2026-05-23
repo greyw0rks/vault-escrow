@@ -1,0 +1,9 @@
+export const MAX_MILESTONES     = 10;
+export const MIN_DEPOSIT_STX    = 1;
+export const MAX_DEPOSIT_STX    = 1_000_000;
+export const MAX_DESCRIPTION_LEN = 256;
+export const MIN_DESCRIPTION_LEN = 3;
+export const SCAN_BATCH_SIZE    = 10;
+export const POLL_INTERVAL_MS   = 15_000;
+export const TX_TIMEOUT_MS      = 300_000;
+export const CACHE_TTL_MS       = 30_000;
