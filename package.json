@@ -1,52 +1,48 @@
 {
   "name": "@greyw0rks/vault-escrow",
   "version": "1.0.0",
-  "description": "Trustless milestone escrow frontend for Stacks/Bitcoin",
+  "description": "SDK for interacting with VaultSTX trustless milestone escrow contracts on Stacks",
+  "main": "src/index.js",
   "type": "module",
-  "private": false,
-  "scripts": {
-    "test": "vitest run",
-    "test:report": "vitest run -- --coverage --costs",
-    "test:watch": "chokidar \"tests/**/*.ts\" \"contracts/**/*.clar\" -c \"npm run test:report\""
-  },
-  "author": "greyw0rks",
-  "license": "MIT",
-  "dependencies": {
-    "@hirosystems/clarinet-sdk": "^3.8.1",
-    "@stacks/clarinet-sdk": "^3.9.0",
-    "@stacks/transactions": "^7.4.0",
-    "@types/node": "^24.4.0",
-    "chokidar-cli": "^3.0.0",
-    "vitest": "^4.0.7",
-    "vitest-environment-clarinet": "^3.0.0"
-  },
-  "publishConfig": {
-    "access": "public"
+  "exports": {
+    ".": "./src/index.js",
+    "./escrow": "./src/escrow.js",
+    "./factory": "./src/factory.js",
+    "./dispute": "./src/dispute.js",
+    "./types": "./src/types.js"
   },
   "keywords": [
     "stacks",
-    "bitcoin",
-    "escrow",
     "clarity",
+    "escrow",
+    "milestone",
+    "trustless",
+    "blockchain",
     "web3",
-    "stx",
-    "milestone"
+    "bitcoin",
+    "defi"
   ],
+  "author": "greyw0rks",
+  "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/greyw0rks/vault-escrow.git"
+    "url": "https://github.com/greyw0rks/vaultstx"
   },
-  "bugs": {
-    "url": "https://github.com/greyw0rks/vault-escrow/issues"
+  "homepage": "https://github.com/greyw0rks/vaultstx#readme",
+  "peerDependencies": {
+    "@stacks/transactions": ">=6.0.0",
+    "@stacks/network": ">=6.0.0"
   },
-  "homepage": "https://github.com/greyw0rks/vault-escrow#readme",
+  "peerDependenciesMeta": {
+    "@stacks/transactions": { "optional": false },
+    "@stacks/network": { "optional": false }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "files": [
-    "app",
-    "components",
-    "lib",
-    "public",
-    "next.config.js",
-    "tsconfig.json",
-    "README.md"
+    "src/",
+    "README.md",
+    "LICENSE"
   ]
 }

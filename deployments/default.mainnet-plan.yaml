@@ -8,10 +8,17 @@ plan:
   - id: 0
     transactions:
     - transaction-type: contract-publish
-      contract-name: vaultstx-escrow
+      contract-name: vaultstx-factory
       expected-sender: SP1SY1E599GN04XRD2DQBKV7E62HYBJR2CT9S5QKK
-      cost: 95480
-      path: contracts/vaultstx-escrow.clar
+      cost: 112300
+      path: contracts/vaultstx-factory.clar
+      anchor-block-only: true
+      clarity-version: 2
+    - transaction-type: contract-publish
+      contract-name: vaultstx-dispute
+      expected-sender: SP1SY1E599GN04XRD2DQBKV7E62HYBJR2CT9S5QKK
+      cost: 88750
+      path: contracts/vaultstx-dispute.clar
       anchor-block-only: true
       clarity-version: 2
     epoch: '3.4'

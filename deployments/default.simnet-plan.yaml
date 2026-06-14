@@ -67,4 +67,14 @@ plan:
       emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
       path: contracts/vaultstx-escrow.clar
       clarity-version: 2
+    - transaction-type: emulated-contract-publish
+      contract-name: vaultstx-factory
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/vaultstx-factory.clar
+      clarity-version: 2
+    - transaction-type: emulated-contract-publish
+      contract-name: vaultstx-dispute
+      emulated-sender: ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+      path: contracts/vaultstx-dispute.clar
+      clarity-version: 2
     epoch: '3.4'

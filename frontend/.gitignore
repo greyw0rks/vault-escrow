@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+daily_vault_may*.sh
+install_all_b.sh
+*.Zone.Identifier
