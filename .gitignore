@@ -11,3 +11,9 @@ coverage
 *.info
 costs-reports.json
 node_modules
+
+# Never commit real env files. .env held a mainnet deployer key until 2026-09-05.
+.env
+.env.local
+.env.*.local
+!.env.example
