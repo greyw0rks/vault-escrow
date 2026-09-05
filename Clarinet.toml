@@ -2,7 +2,7 @@
 name = "vaultstx2"
 description = ""
 authors = []
-telemetry = true
+telemetry = false
 cache_dir = "./.cache"
 
 # [contracts.counter]

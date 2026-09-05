@@ -1,24 +1,50 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { useConnect, isConnected, getUserData, disconnect } from '@stacks/connect-react';
 
+import { useCallback, useEffect, useState } from 'react';
+import {
+  connectWallet, currentAddress, disconnectWallet, isUserCancel, isWalletConnected,
+} from '../lib/wallet';
+
+/**
+ * The app's only wallet hook. `ready` distinguishes "not connected" from
+ * "haven't checked yet", which is what the old hardcoded `isSignedIn = false`
+ * on the landing page was standing in for.
+ */
 export function useWallet() {
-  const { authenticate } = useConnect();
+  const [address, setAddress] = useState('');
   const [connected, setConnected] = useState(false);
-  const [address, setAddress] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const c = isConnected();
-    setConnected(c);
-    if (c) {
-      const data = getUserData() as any;
-      setAddress(data?.profile?.stxAddress?.testnet ?? null);
+    let live = true;
+    (async () => {
+      const already = await isWalletConnected();
+      const addr = already ? await currentAddress() : '';
+      if (!live) return;
+      setConnected(already);
+      setAddress(addr);
+      setReady(true);
+    })();
+    return () => { live = false; };
+  }, []);
+
+  const connect = useCallback(async () => {
+    setError(null);
+    try {
+      const addr = await connectWallet();
+      setAddress(addr);
+      setConnected(true);
+    } catch (e) {
+      if (!isUserCancel(e)) setError((e as Error).message || 'Wallet connection failed');
     }
   }, []);
 
-  const connect = () => authenticate({ appDetails: { name: 'VaultSTX', icon: '/logo.svg' } });
-  const signOut = () => { disconnect(); setConnected(false); setAddress(null); };
-  const shortAddress = address ? address.slice(0, 8) + '\u2026' + address.slice(-4) : null;
+  const disconnect = useCallback(async () => {
+    await disconnectWallet();
+    setAddress('');
+    setConnected(false);
+  }, []);
 
-  return { connected, address, shortAddress, connect, signOut };
+  return { address, connected, ready, error, connect, disconnect };
 }
