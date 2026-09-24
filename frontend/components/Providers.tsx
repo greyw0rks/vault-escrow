@@ -1,19 +1,31 @@
 'use client';
-import dynamic from 'next/dynamic';
 
-// Nav reads wallet state, so it only renders on the client.
-const Nav = dynamic(() => import('./Nav'), { ssr: false });
+import { type ReactNode } from 'react';
+import { Toaster } from 'sonner';
+import { AppProvider } from '@/lib/store';
+import { Nav } from './Nav';
+import { Footer } from './Footer';
 
-/**
- * The legacy <Connect> wrapper is gone: @stacks/connect 8 exposes
- * connect()/request() directly, so there is no provider to mount and no
- * UserSession to keep in sync.
- */
-export default function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children }: { children: ReactNode }) {
   return (
-    <>
+    <AppProvider>
       <Nav />
-      {children}
-    </>
+      <main className="mx-auto min-h-[70vh] max-w-[1400px]">{children}</main>
+      <Footer />
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            border: '2px solid #2c2c2c',
+            borderRadius: 0,
+            background: '#121212',
+            color: '#eaeaea',
+            fontFamily: 'var(--font-jbmono), monospace',
+            fontSize: '0.75rem',
+            letterSpacing: '0.05em',
+          },
+        }}
+      />
+    </AppProvider>
   );
 }

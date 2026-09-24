@@ -2,60 +2,70 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useWallet } from '../hooks/useWallet';
-import { NETWORK_NAME, truncatePrincipal } from '../lib/contract';
+import { useApp } from '@/lib/store';
+import { APP_NAME } from '@/lib/config';
+import { NETWORK_NAME } from '@/lib/contract';
+import { trunc } from '@/lib/utils';
+import { cn } from '@/lib/cn';
+import { Button } from './ui/button';
 
-export default function Nav() {
+const LINKS = [
+  { href: '/dashboard', label: 'DASHBOARD' },
+  { href: '/escrow/new', label: 'NEW ESCROW' },
+  { href: '/disputes', label: 'DISPUTES' },
+  { href: '/registry', label: 'REGISTRY' },
+];
+
+export function Nav() {
+  const { connected, address, connect, disconnect } = useApp();
   const pathname = usePathname();
-  const { connected, address, ready, connect, disconnect } = useWallet();
 
   return (
-    <nav>
-      <Link href="/" className="nav-brand">
-        <div className="nav-logo">
-          <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <circle cx="7" cy="7" r="5" stroke="#1A1000" strokeWidth="1.5" />
-            <circle cx="7" cy="7" r="1.5" fill="#1A1000" />
-            <line x1="7" y1="2" x2="7" y2="0.5" stroke="#1A1000" strokeWidth="1.5" strokeLinecap="round" />
-            <line x1="7" y1="13.5" x2="7" y2="12" stroke="#1A1000" strokeWidth="1.5" strokeLinecap="round" />
-            <line x1="2" y1="7" x2="0.5" y2="7" stroke="#1A1000" strokeWidth="1.5" strokeLinecap="round" />
-            <line x1="13.5" y1="7" x2="12" y2="7" stroke="#1A1000" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </div>
-        <span className="nav-brand-name">VaultSTX</span>
-      </Link>
-
-      <div className="nav-links">
-        <Link href="/dashboard" aria-current={pathname === '/dashboard' ? 'page' : undefined}
-          style={{ color: pathname === '/dashboard' ? 'var(--gold)' : undefined }}>
-          Dashboard
+    <header className="sticky top-0 z-50 border-b-2 border-line bg-bg">
+      <div className="mx-auto flex h-16 max-w-[1400px] items-stretch">
+        <Link
+          href="/"
+          className="flex items-center gap-2 border-r-2 border-line px-5 macro text-xl hover:bg-fg hover:text-bg"
+        >
+          {APP_NAME}<span className="text-hazard">®</span>
         </Link>
-        <Link href="/escrow/new" aria-current={pathname === '/escrow/new' ? 'page' : undefined}
-          style={{ color: pathname === '/escrow/new' ? 'var(--gold)' : undefined }}>
-          New Escrow
-        </Link>
-      </div>
 
-      <div className="nav-actions">
-        {NETWORK_NAME !== 'mainnet' && <span className="address-pill">{NETWORK_NAME}</span>}
-        {!ready ? (
-          <span className="address-pill" aria-live="polite">…</span>
-        ) : connected ? (
-          <>
-            <span className="address-pill">{truncatePrincipal(address, 8)}</span>
+        <nav className="flex items-stretch">
+          {LINKS.map((l) => {
+            const active = pathname.startsWith(l.href);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={cn(
+                  'hidden items-center border-r-2 border-line px-4 font-mono text-[0.7rem] font-bold uppercase tracking-widest md:flex',
+                  active ? 'bg-fg text-bg' : 'text-fg-2 hover:bg-panel-2 hover:text-fg',
+                )}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="ml-auto flex items-center gap-3 px-4">
+          <span className="hidden items-center gap-1.5 border-2 border-line px-2 py-1 font-mono text-[0.65rem] font-bold uppercase tracking-widest text-fg-2 sm:inline-flex">
+            <span className={cn('h-2 w-2', NETWORK_NAME === 'mainnet' ? 'bg-hazard' : 'bg-fg', 'blink')} />
+            {NETWORK_NAME}
+          </span>
+          {connected && address ? (
             <button
-              type="button"
-              className="btn-ghost"
-              style={{ padding: '.35rem .875rem', fontSize: '.8125rem' }}
               onClick={disconnect}
+              className="border-2 border-line bg-panel px-3 py-1.5 font-mono text-[0.7rem] font-bold uppercase tracking-widest text-fg hover:bg-hazard hover:border-hazard"
+              title="Disconnect"
             >
-              Disconnect
+              {trunc(address, 5)}
             </button>
-          </>
-        ) : (
-          <button type="button" className="btn-primary" onClick={connect}>Connect Wallet</button>
-        )}
+          ) : (
+            <Button size="sm" onClick={connect}>CONNECT</Button>
+          )}
+        </div>
       </div>
-    </nav>
+    </header>
   );
 }

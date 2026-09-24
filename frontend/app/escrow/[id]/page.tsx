@@ -1,258 +1,228 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useWallet } from '../../../hooks/useWallet';
+import Link from 'next/link';
+import { useApp } from '@/lib/store';
 import {
-  buildActivateEscrow, buildAddMilestone, buildApproveMilestone, buildCancelEscrow,
-  buildRaiseDispute, buildResolveDispute, buildSubmitMilestone,
-  explorerTxUrl, fetchAllMilestones, fetchEscrow, microToSTX, truncatePrincipal,
-  type ContractCall, type Escrow, type EscrowState, type Milestone, type MilestoneState,
-} from '../../../lib/contract';
-import { callContract, isUserCancel, waitForTx } from '../../../lib/wallet';
+  fetchEscrow,
+  fetchMilestones,
+  fetchRemaining,
+  buildSubmitMilestone,
+  buildApproveMilestone,
+  buildRaiseDispute,
+  buildResolveMilestone,
+  buildActivateEscrow,
+  buildCancelEscrow,
+  explorerAddress,
+  type Escrow,
+  type Milestone,
+} from '@/lib/contract';
+import { toSTX, trunc, unitId } from '@/lib/utils';
+import { EscrowBadge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { MilestoneRow } from '@/components/MilestoneRow';
 
-const STATE_LABELS: Record<EscrowState, string> = {
-  open: 'Open', active: 'Active', disputed: 'Disputed', complete: 'Complete', cancelled: 'Cancelled',
-};
+export default function EscrowDetail() {
+  const params = useParams();
+  const id = Number(params.id);
+  const { connected, address, submit, refreshKey } = useApp();
 
-const MS_LABELS: Record<MilestoneState, string> = {
-  pending: 'Pending', submitted: 'Submitted', approved: 'Approved', disputed: 'Disputed',
-};
-
-export default function EscrowDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const escrowId = Number(id);
-  const { address, connected, ready, connect } = useWallet();
-
-  const [escrow, setEscrow] = useState<Escrow | null>(null);
+  const [e, setE] = useState<Escrow | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [remaining, setRemaining] = useState<bigint>(0n);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState('');
-  const [error, setError] = useState('');
-  const [lastTx, setLastTx] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const e = await fetchEscrow(escrowId);
-      if (!e) { setError(`Escrow #${escrowId} does not exist on this contract.`); setEscrow(null); return; }
-      setEscrow(e);
-      setMilestones(await fetchAllMilestones(e));
-      setError('');
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
+    const esc = await fetchEscrow(id).catch(() => null);
+    setE(esc);
+    if (esc) {
+      fetchMilestones(esc).then(setMilestones).catch(() => setMilestones([]));
+      fetchRemaining(id).then(setRemaining).catch(() => setRemaining(0n));
     }
-  }, [escrowId]);
+    setLoading(false);
+  }, [id]);
 
-  useEffect(() => { if (Number.isFinite(escrowId)) load(); }, [escrowId, load]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load();
+  }, [load, refreshKey]);
 
-  /** Submit, wait for the block, then re-read so the UI reflects chain state. */
-  const run = useCallback(async (label: string, call: ContractCall) => {
-    setError('');
-    setBusy(label);
-    try {
-      const txid = await callContract(call);
-      if (!txid) { setBusy(''); return; }
-      setLastTx(txid);
-      const outcome = await waitForTx(txid);
-      if (outcome.status !== 'success') {
-        setError(`${label} did not succeed (${outcome.status}${outcome.repr ? ` ${outcome.repr}` : ''})`);
-      }
-      await load();
-    } catch (err) {
-      if (!isUserCancel(err)) setError((err as Error).message);
-    } finally {
-      setBusy('');
-    }
-  }, [load]);
+  async function act(key: string, call: Parameters<typeof submit>[0], label: string) {
+    setBusy(key);
+    await submit(call, label);
+    setBusy(null);
+    setTimeout(load, 1500);
+  }
 
-  if (loading && !escrow) return <div className="loading">Loading escrow #{escrowId}…</div>;
-
-  if (!escrow) {
+  if (loading) {
+    return <div className="px-6 py-24 text-center macro text-3xl md:px-10"><span className="blink">READING CHAIN…</span></div>;
+  }
+  if (!e) {
     return (
-      <main className="center-page page">
-        <h1>Escrow #{escrowId}</h1>
-        <p style={{ color: 'var(--red)' }}>{error || 'Not found.'}</p>
-        <Link href="/dashboard" className="btn-ghost">Back to dashboard</Link>
-      </main>
+      <div className="px-6 py-24 text-center md:px-10">
+        <div className="macro text-4xl">VAULT NOT FOUND</div>
+        <p className="mt-2 mono text-[0.7rem] uppercase tracking-widest text-dim">{unitId('VLT', id)} DOES NOT EXIST ON CHAIN</p>
+        <Link href="/dashboard"><Button className="mt-5" variant="outline">« BACK TO DASHBOARD</Button></Link>
+      </div>
     );
   }
 
-  const isClient = connected && address === escrow.client;
-  const isWorker = connected && address === escrow.worker;
-  const isResolver = connected && address === escrow.resolver;
-  const approved = milestones.filter((m) => m.state === 'approved').length;
-  const progress = escrow.milestoneCount > 0 ? Math.round((approved / escrow.milestoneCount) * 100) : 0;
+  const isClient = connected && address === e.client;
+  const isWorker = connected && address === e.worker;
+  const isResolver = connected && address === e.resolver;
+  const role = isClient ? 'CLIENT' : isWorker ? 'WORKER' : isResolver ? 'RESOLVER' : 'OBSERVER';
 
   return (
-    <main className="detail-page">
-      <div className="detail-header">
+    <div className="px-6 py-10 md:px-10">
+      <Link href="/dashboard" className="mono text-[0.7rem] font-bold uppercase tracking-widest text-dim hover:text-hazard">
+        « DASHBOARD
+      </Link>
+
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1>Escrow #{escrow.id}</h1>
-          <span className={`state-badge state-${escrow.state}`}>{STATE_LABELS[escrow.state]}</span>
+          <div className="tele mb-2">{unitId('VLT', e.id)} / YOU ARE {role}</div>
+          <h1 className="macro text-5xl md:text-6xl">
+            {toSTX(e.state === 'open' ? e.deposited : e.totalAmount)}
+            <span className="ml-2 text-2xl text-dim">STX</span>
+          </h1>
         </div>
-        <div className="amount-display">
-          <span className="amount-label">Total locked</span>
-          <span className="amount-value">{microToSTX(escrow.totalAmount)} STX</span>
-        </div>
+        <EscrowBadge state={e.state} className="text-sm" />
       </div>
 
-      {ready && !connected && (
-        <div className="empty-state" style={{ marginBottom: '1.5rem' }}>
-          <p>Connect a wallet to act on this escrow.</p>
-          <button type="button" className="btn-primary" onClick={connect}>Connect Wallet</button>
-        </div>
-      )}
+      <hr className="rule my-6" />
 
-      {error && (
-        <div className="empty-state" style={{ borderColor: 'var(--red)', marginBottom: '1.5rem' }}>
-          <p style={{ color: 'var(--red)' }}>{error}</p>
-        </div>
-      )}
-
-      {busy && (
-        <div className="loading" aria-live="polite" style={{ marginBottom: '1.5rem' }}>
-          {busy} — waiting for the block. Stacks blocks take ~10 minutes.
-        </div>
-      )}
-
-      <div className="parties-row">
-        <div className="party">
-          <span className="party-role">Client</span>
-          <code>{truncatePrincipal(escrow.client)}</code>
-          {isClient && <span className="you-badge">you</span>}
-        </div>
-        <div className="arrow">→</div>
-        <div className="party">
-          <span className="party-role">Worker</span>
-          <code>{truncatePrincipal(escrow.worker)}</code>
-          {isWorker && <span className="you-badge">you</span>}
-        </div>
-        <div className="party">
-          <span className="party-role">Resolver</span>
-          <code>{truncatePrincipal(escrow.resolver)}</code>
-          {isResolver && <span className="you-badge">you</span>}
-        </div>
-      </div>
-
-      <div
-        className="progress-track"
-        role="progressbar"
-        aria-valuenow={progress}
-        aria-valuemin={0}
-        aria-valuemax={100}
-      >
-        <div className="progress-fill" style={{ width: `${progress}%` }} />
-      </div>
-      <p className="progress-label">
-        {approved} of {escrow.milestoneCount} milestone{escrow.milestoneCount === 1 ? '' : 's'} complete
-        · {microToSTX(escrow.released)} / {microToSTX(escrow.totalAmount)} STX released
-      </p>
-
-      {escrow.state === 'open' && (isClient || isWorker) && (
-        <div className="oracle-panel" style={{ marginBottom: '1.5rem' }}>
-          <p style={{ marginBottom: '.75rem' }}>
-            This escrow is still open, so milestones can be added and no STX is locked yet.
-          </p>
-          {isClient && (
-            <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap' }}>
-              <button type="button" className="btn-primary btn-sm" disabled={!!busy || escrow.milestoneCount === 0}
-                onClick={() => run('Locking STX', buildActivateEscrow(escrow.id))}>
-                Activate and lock {microToSTX(escrow.totalAmount)} STX
-              </button>
-              <button type="button" className="btn-danger btn-sm" disabled={!!busy}
-                onClick={() => run('Cancelling escrow', buildCancelEscrow(escrow.id))}>
-                Cancel escrow
-              </button>
-            </div>
+      <div className="grid gap-px bg-line lg:grid-cols-[1.6fr_1fr]">
+        {/* LEFT: milestone ledger */}
+        <div className="space-y-3 bg-bg p-6">
+          <div className="tele mb-1">[ MILESTONE LEDGER ]</div>
+          {milestones.length === 0 ? (
+            <p className="mono text-[0.7rem] uppercase tracking-widest text-dim">NO MILESTONES</p>
+          ) : (
+            milestones.map((m) => {
+              const isActive = m.index === e.activeMilestone && e.state === 'active';
+              const canSubmit = isWorker && e.state === 'active' && m.state === 'pending' && m.index === e.activeMilestone;
+              const canApprove = isClient && e.state === 'active' && m.state === 'submitted';
+              const canDispute = (isClient || isWorker) && e.state === 'active' && m.state === 'submitted';
+              const canResolve = isResolver && e.state === 'disputed' && m.state === 'disputed';
+              return (
+                <MilestoneRow
+                  key={m.index}
+                  m={m}
+                  active={isActive}
+                  actions={
+                    <>
+                      {canSubmit && (
+                        <Button size="sm" disabled={busy !== null}
+                          onClick={() => act(`sub-${m.index}`, buildSubmitMilestone(id, m.index), `Submit MS-${m.index}`)}>
+                          {busy === `sub-${m.index}` ? '···' : 'SUBMIT ▲'}
+                        </Button>
+                      )}
+                      {canApprove && (
+                        <Button size="sm" disabled={busy !== null}
+                          onClick={() => act(`app-${m.index}`, buildApproveMilestone(id, m.index), `Approve MS-${m.index}`)}>
+                          {busy === `app-${m.index}` ? '···' : 'APPROVE ✓'}
+                        </Button>
+                      )}
+                      {canDispute && (
+                        <Button size="sm" variant="hazard" disabled={busy !== null}
+                          onClick={() => act(`dis-${m.index}`, buildRaiseDispute(id, m.index), `Dispute MS-${m.index}`)}>
+                          {busy === `dis-${m.index}` ? '···' : 'DISPUTE !'}
+                        </Button>
+                      )}
+                      {canResolve && (
+                        <>
+                          <Button size="sm" disabled={busy !== null}
+                            onClick={() => act(`rw-${m.index}`, buildResolveMilestone(id, m.index, true), `Release MS-${m.index} to worker`)}>
+                            {busy === `rw-${m.index}` ? '···' : 'PAY WORKER »'}
+                          </Button>
+                          <Button size="sm" variant="hazard" disabled={busy !== null}
+                            onClick={() => act(`rc-${m.index}`, buildResolveMilestone(id, m.index, false), `Refund MS-${m.index} to client`)}>
+                            {busy === `rc-${m.index}` ? '···' : 'REFUND CLIENT ✕'}
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  }
+                />
+              );
+            })
           )}
         </div>
-      )}
 
-      <div className="milestones-list">
-        {milestones.length === 0 && (
-          <div className="empty-state"><p>No milestones have been added to this escrow yet.</p></div>
-        )}
-
-        {milestones.map((ms, i) => {
-          const isActiveMilestone = i === escrow.activeMilestone;
-          return (
-            <div key={i} className={`milestone-card ms-${ms.state} ${isActiveMilestone ? 'active' : ''}`}>
-              <div className="ms-header">
-                <div className="ms-index">{i + 1}</div>
-                <div className="ms-info">
-                  <p className="ms-desc">{ms.description}</p>
-                  <span className="ms-amount">{microToSTX(ms.amount)} STX</span>
-                </div>
-                <span className={`ms-badge ms-badge-${ms.state}`}>{MS_LABELS[ms.state]}</span>
-              </div>
-
-              {/* The contract only accepts action on the active milestone, so no
-                  other row gets buttons that would be rejected on chain. */}
-              {isActiveMilestone && (
-                <div className="ms-actions">
-                  {isWorker && ms.state === 'pending' && escrow.state === 'active' && (
-                    <button type="button" className="btn-primary btn-sm" disabled={!!busy}
-                      onClick={() => run('Submitting milestone', buildSubmitMilestone(escrow.id, i))}>
-                      Submit for review
-                    </button>
-                  )}
-
-                  {isClient && ms.state === 'submitted' && escrow.state === 'active' && (
-                    <>
-                      <button type="button" className="btn-success btn-sm" disabled={!!busy}
-                        onClick={() => run('Approving milestone', buildApproveMilestone(escrow.id, i))}>
-                        Approve &amp; release {microToSTX(ms.amount)} STX
-                      </button>
-                      <button type="button" className="btn-danger btn-sm" disabled={!!busy}
-                        onClick={() => run('Raising dispute', buildRaiseDispute(escrow.id, i))}>
-                        Raise dispute
-                      </button>
-                    </>
-                  )}
-
-                  {isWorker && ms.state === 'submitted' && escrow.state === 'active' && (
-                    <button type="button" className="btn-danger btn-sm" disabled={!!busy}
-                      onClick={() => run('Raising dispute', buildRaiseDispute(escrow.id, i))}>
-                      Raise dispute
-                    </button>
-                  )}
-
-                  {isResolver && ms.state === 'disputed' && escrow.state === 'disputed' && (
-                    <>
-                      <p className="resolver-note">You are the resolver for this dispute.</p>
-                      <button type="button" className="btn-success btn-sm" disabled={!!busy}
-                        onClick={() => run('Releasing to worker', buildResolveDispute(escrow.id, i, true))}>
-                        Release to worker
-                      </button>
-                      <button type="button" className="btn-warning btn-sm" disabled={!!busy}
-                        onClick={() => run('Refunding client', buildResolveDispute(escrow.id, i, false))}>
-                        Refund client
-                      </button>
-                    </>
-                  )}
-
-                  {!connected && ms.state !== 'approved' && (
-                    <p className="resolver-note">Connect a wallet to act on this milestone.</p>
-                  )}
-                </div>
+        {/* RIGHT: actions + metadata */}
+        <div className="space-y-6 bg-bg p-6">
+          {isClient && e.state === 'open' && (
+            <div className="space-y-2">
+              <div className="tele mb-1">[ CLIENT CONTROLS ]</div>
+              <Button className="w-full" disabled={busy !== null || e.milestoneCount === 0}
+                onClick={() => act('activate', buildActivateEscrow(id), 'Activate escrow')}>
+                {busy === 'activate' ? 'AWAITING WALLET…' : 'ACTIVATE ESCROW »'}
+              </Button>
+              <Button className="w-full" variant="hazard" disabled={busy !== null}
+                onClick={() => act('cancel', buildCancelEscrow(id), 'Cancel escrow')}>
+                {busy === 'cancel' ? 'AWAITING WALLET…' : 'CANCEL + REFUND ✕'}
+              </Button>
+              {e.milestoneCount === 0 && (
+                <p className="mono text-[0.65rem] uppercase tracking-widest text-dim">ADD A MILESTONE BEFORE ACTIVATING</p>
               )}
             </div>
-          );
-        })}
-      </div>
+          )}
 
-      {lastTx && (
-        <p style={{ marginTop: '2rem', fontSize: '.75rem' }}>
-          <a href={explorerTxUrl(lastTx)} target="_blank" rel="noreferrer"
-            style={{ fontFamily: "'JetBrains Mono',monospace", color: 'var(--gold)' }}>
-            Last transaction {lastTx.slice(0, 10)}…{lastTx.slice(-6)} ↗
-          </a>
-        </p>
-      )}
-    </main>
+          <div>
+            <div className="tele mb-2">[ FUNDS ]</div>
+            <dl className="gridlines grid-cols-2 text-xs">
+              <Meta k="TOTAL" v={`${toSTX(e.totalAmount)}`} />
+              <Meta k="DEPOSITED" v={`${toSTX(e.deposited)}`} />
+              <Meta k="RELEASED" v={`${toSTX(e.released)}`} />
+              <Meta k="REMAINING" v={`${toSTX(remaining)}`} phosphor />
+            </dl>
+          </div>
+
+          <div>
+            <div className="tele mb-2">[ PARTIES ]</div>
+            <dl className="space-y-2 text-xs">
+              {([['CLIENT', e.client], ['WORKER', e.worker], ['RESOLVER', e.resolver]] as const).map(([k, v]) => (
+                <div key={k}>
+                  <dt className="mono text-[0.6rem] uppercase tracking-widest text-dim">{k}</dt>
+                  <dd>
+                    <a href={explorerAddress(v)} target="_blank" rel="noreferrer"
+                      className="mono break-all text-fg underline decoration-hazard decoration-2 underline-offset-2">
+                      {trunc(v, 8, 8)}
+                    </a>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <div>
+            <div className="tele mb-2">[ METADATA ]</div>
+            <dl className="gridlines grid-cols-2 text-xs">
+              <Meta k="STATE" v={e.state.toUpperCase()} />
+              <Meta k="ACTIVE MS" v={String(e.activeMilestone)} />
+              <Meta k="MILESTONES" v={String(e.milestoneCount)} />
+              <Meta k="CREATED @" v={String(e.createdAt)} />
+            </dl>
+          </div>
+
+          {e.state === 'disputed' && (
+            <Link href="/disputes" className="mono block text-[0.7rem] uppercase tracking-widest underline decoration-hazard decoration-2 underline-offset-2">
+              » ESCALATE TO ARBITRATION CENTER
+            </Link>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Meta({ k, v, phosphor }: { k: string; v: string; phosphor?: boolean }) {
+  return (
+    <div className="bg-bg px-3 py-2">
+      <dt className="mono text-[0.6rem] uppercase tracking-widest text-dim">{k}</dt>
+      <dd className={`mono mt-0.5 text-sm font-bold ${phosphor ? 'phosphor' : 'text-fg'}`}>{v}</dd>
+    </div>
   );
 }
